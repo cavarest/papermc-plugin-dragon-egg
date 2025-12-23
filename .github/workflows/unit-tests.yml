@@ -1,0 +1,58 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [21, 22]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+
+    - name: Cache Maven packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Build with Maven
+      run: mvn clean compile
+
+    - name: Run unit tests
+      run: mvn test
+
+    - name: Generate test report
+      run: mvn surefire-report:report
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-java-${{ matrix.java-version }}
+        path: |
+          target/surefire-reports/
+          target/site/surefire-report.html
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./target/site/jacoco/jacoco.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
