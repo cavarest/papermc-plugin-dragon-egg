@@ -2,6 +2,238 @@
 
 A Minecraft Paper plugin that allows players to cast lightning abilities using Dragon Eggs held in their offhand.
 
+---
+
+## For Server Administrators 🚀
+
+### Quick Installation (5 Minutes)
+
+#### Step 1: Download the Plugin
+```bash
+# Download the latest release from GitHub
+# Visit: https://github.com/ronaldtse/papermc-plugin-dragon-egg/releases
+# Download: DragonEggLightning-0.1.0.jar
+```
+
+#### Step 2: Install on Your Paper Server
+```bash
+# 1. Stop your Paper server (if running)
+# 2. Copy the JAR file to your plugins directory
+cp DragonEggLightning-0.1.0.jar /path/to/your/paper-server/plugins/
+
+# 3. Start/restart your Paper server
+java -Xms2G -Xmx2G -jar paper-1.21.8-latest.jar nogui
+```
+
+#### Step 3: Verify Installation
+1. **Check Server Console**: Look for `[INFO] DragonEggLightning enabled`
+2. **In-Game Test**: `/plugins` should show "DragonEggLightning"
+3. **Command Test**: `/ability 1` should work (after getting Dragon Egg)
+
+### Complete Feature Testing Protocol
+
+Use this comprehensive checklist to verify every feature works correctly:
+
+#### ✅ Basic Installation Tests
+- [ ] Server starts without errors
+- [ ] Plugin appears in `/plugins` list
+- [ ] Server console shows "DragonEggLightning enabled"
+- [ ] No critical errors in server logs
+
+#### ✅ Core Functionality Tests
+
+**Test 1: Plugin Loading**
+```bash
+# In server console or with plugins:
+/plugins
+# Expected: Shows "DragonEggLightning" in green
+```
+
+**Test 2: Command Recognition**
+```bash
+# In Minecraft chat:
+/ability 1
+# Expected:
+# - With Dragon Egg in offhand: Shows "No valid target found!" or attempts to cast
+# - Without Dragon Egg: Shows "You must hold a Dragon Egg in your offhand!"
+```
+
+**Test 3: Dragon Egg Requirement**
+```bash
+# Steps to test:
+1. /give @p minecraft:dragon_egg
+2. /ability 1  # Should fail - no offhand check yet
+3. Press F key to move Dragon Egg to offhand
+4. /ability 1  # Should work if target available
+# Expected: Ability only works with Dragon Egg in offhand
+```
+
+**Test 4: Lightning Ability Execution**
+```bash
+# Setup:
+1. /give @p minecraft:dragon_egg 5
+2. Press F to move Dragon Egg to offhand
+3. Find a target entity (zombie, cow, villager, etc.)
+4. Look at the entity (within 50 blocks)
+/ability 1
+
+# Expected Results:
+- [ ] Purple lightning strikes appear
+- [ ] 3 strikes with 0.5-second intervals between each
+- [ ] Target takes 1.5 hearts damage per strike
+- [ ] Success message: "Lightning ability activated!"
+- [ ] Thunder sound plays for each strike
+```
+
+**Test 5: Cooldown System**
+```bash
+# Test sequence:
+1. /ability 1  # First use - should work
+2. Immediately /ability 1  # Should fail - cooldown active
+3. Wait 60 seconds
+4. /ability 1  # Should work again
+
+# Expected Results:
+- [ ] First attempt works normally
+- [ ] Second attempt fails with cooldown message
+- [ ] HUD shows countdown: "59s", "58s", etc.
+- [ ] After 60s, shows "⚡ Lightning ready"
+- [ ] Ability works again after cooldown
+```
+
+**Test 6: Target Detection**
+```bash
+# Test scenarios:
+1. Look at entity within 50 blocks → Should target closest entity
+2. Look at empty area → Should show "No valid target found!"
+3. Look at entity behind wall → Should show "No valid target found!"
+4. Look at entity >50 blocks away → Should show "No valid target found!"
+
+# Expected Results:
+- [ ] Accurate targeting within 50-block range
+- [ ] Line-of-sight validation (no targeting through walls)
+- [ ] Clear error messages for invalid targets
+```
+
+**Test 7: Edge Case Handling**
+```bash
+# Test item switching during casting:
+1. Start lightning with /ability 1
+2. During strikes, remove Dragon Egg from offhand
+# Expected: "Ability cancelled! Dragon Egg removed from offhand."
+
+# Test target death during casting:
+1. Start lightning with /ability 1
+2. Kill target during strikes
+# Expected: Remaining strikes stop gracefully
+
+# Test multiple rapid use:
+1. Use /ability 1
+2. Try to use repeatedly
+# Expected: Cooldown prevents spam
+```
+
+#### ✅ Performance Tests
+
+**Test 8: Server Performance**
+```bash
+# Monitor during lightning use:
+/tps  # Should remain ~20
+/mem  # Check memory usage
+
+# Expected Results:
+- [ ] TPS doesn't drop significantly during lightning
+- [ ] Memory usage stays stable
+- [ ] No console errors during heavy use
+```
+
+**Test 9: Visual Performance**
+```bash
+# Test with different graphics settings:
+- Low: Particles → Minimal
+- Medium: Particles → All
+- High: Particles → All (maximum effects)
+
+# Expected Results:
+- [ ] Lightning visible at all particle levels
+- [ ] No client-side lag from effects
+- [ ] Smooth 60 FPS gameplay
+```
+
+### Troubleshooting Common Issues
+
+#### Issue: Plugin Not Loading
+**Symptoms**: `/plugins` doesn't show DragonEggLightning
+```bash
+# Solutions:
+1. Check Java version: java -version  # Must be 21+
+2. Verify JAR location: ls plugins/DragonEggLightning*.jar
+3. Check server logs: tail -f logs/latest.log | grep -i dragon
+4. Restart server after plugin installation
+```
+
+#### Issue: Command Not Working
+**Symptoms**: "Unknown command" or permission denied
+```bash
+# Solutions:
+1. Make player operator: op <username>
+2. Verify plugin loaded: /plugins
+3. Check server logs for command registration errors
+```
+
+#### Issue: Lightning Not Appearing
+**Symptoms**: Command works but no visual effects
+```bash
+# Solutions:
+1. Check graphics settings: Video Settings → Particles → All
+2. Monitor server performance: /tps
+3. Check for plugin conflicts
+4. Reduce render distance if needed
+```
+
+#### Issue: Server Lag
+**Symptoms**: TPS drops during lightning use
+```bash
+# Solutions:
+1. Increase JVM memory: java -Xms4G -Xmx4G -jar paper-*.jar
+2. Monitor with: /tps
+3. Check memory with: /mem
+4. Consider reducing max players
+```
+
+### Server Configuration Recommendations
+
+#### Optimal server.properties settings:
+```properties
+gamemode=survival
+difficulty=normal
+view-distance=10
+simulation-distance=10
+max-players=20
+max-tick-time=60000
+entity-broadcast-range-percentage=100
+```
+
+#### JVM Arguments for Better Performance:
+```bash
+java -Xms4G -Xmx4G -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -jar paper-1.21.8-latest.jar
+```
+
+### Monitoring Commands
+```bash
+# Plugin status
+/plugins
+
+# Server performance
+/tps  # Target: 20
+/mem  # Check memory usage
+
+# Plugin debugging
+/dragonreload  # Reload plugin (if implemented)
+```
+
+---
+
 ## Features
 
 ### Lightning Ability (`/ability 1`)
@@ -24,39 +256,7 @@ A Minecraft Paper plugin that allows players to cast lightning abilities using D
 - Cooldown enforcement: Prevents ability spam
 - Required item validation: Fails if Dragon Egg not in offhand
 
-## Architecture
-
-### Core Components
-
-1. **DragonEggLightningPlugin**: Main plugin class
-2. **AbilityManager**: Manages abilities and cooldowns
-3. **LightningAbility**: Implements the lightning strike mechanic
-4. **AbilityCommand**: Handles `/ability 1` command
-5. **HudManager**: Displays cooldown status to players
-
-### Class Structure
-
-```
-DragonEggLightningPlugin
-├── AbilityManager
-│   ├── Ability (interface)
-│   └── LightningAbility (implements Ability)
-├── AbilityCommand
-└── HudManager
-```
-
-### Data Flow
-
-1. Player executes `/ability 1` command
-2. `AbilityCommand` validates input and checks prerequisites
-3. `AbilityManager` checks cooldown and item requirements
-4. `LightningAbility` executes the ability:
-   - Finds target entity using ray tracing
-   - Creates sequential lightning strikes with timing
-   - Applies damage and visual effects
-5. `HudManager` updates cooldown display
-
-## Installation
+## Installation (Development)
 
 ### Prerequisites
 - Java 21+
@@ -117,19 +317,37 @@ docker-compose down
 4. **Watch HUD**: Monitor cooldown status in action bar
 5. **Target**: Look at nearest entity (within 50 blocks, in line of sight)
 
-### Testing Checklist
+## Architecture
 
-- [ ] Plugin loads without errors
-- [ ] `/ability 1` command works with Dragon Egg in offhand
-- [ ] Purple lightning strikes appear visually
-- [ ] Lightning deals correct damage (1.5 hearts per strike)
-- [ ] Three strikes occur with 0.5-second intervals
-- [ ] HUD shows cooldown timer during cooldown
-- [ ] HUD shows "Lightning ready" when available
-- [ ] Ability fails without Dragon Egg in offhand
-- [ ] Ability fails when on cooldown
-- [ ] Error message appears when no targets found
-- [ ] Ability cancels if items switched during casting
+### Core Components
+
+1. **DragonEggLightningPlugin**: Main plugin class
+2. **AbilityManager**: Manages abilities and cooldowns
+3. **LightningAbility**: Implements the lightning strike mechanic
+4. **AbilityCommand**: Handles `/ability 1` command
+5. **HudManager**: Displays cooldown status to players
+
+### Class Structure
+
+```
+DragonEggLightningPlugin
+├── AbilityManager
+│   ├── Ability (interface)
+│   └── LightningAbility (implements Ability)
+├── AbilityCommand
+└── HudManager
+```
+
+### Data Flow
+
+1. Player executes `/ability 1` command
+2. `AbilityCommand` validates input and checks prerequisites
+3. `AbilityManager` checks cooldown and item requirements
+4. `LightningAbility` executes the ability:
+   - Finds target entity using ray tracing
+   - Creates sequential lightning strikes with timing
+   - Applies damage and visual effects
+5. `HudManager` updates cooldown display
 
 ## Development
 
@@ -165,7 +383,7 @@ docker-compose down
 
 ### Key Technologies
 
-- **Paper API 1.21.4**: Latest Minecraft server API
+- **Paper API 1.21.8**: Latest Minecraft server API
 - **Java 21**: Modern Java features
 - **Maven**: Build automation and dependency management
 - **JUnit 5**: Unit testing framework
@@ -211,32 +429,7 @@ Edit `docker-compose.yml` to adjust:
 - Server ports
 - World data persistence
 
-## Troubleshooting
-
-### Common Issues
-
-1. **Plugin not loading**: Check Java version (requires Java 21+)
-2. **Command not working**: Verify permissions and Dragon Egg in offhand
-3. **No lightning effects**: Check server console for errors
-4. **HUD not showing**: Ensure Adventure API compatibility
-
-### Debug Commands
-
-```bash
-# Check plugin status
-/plugins
-
-# Reload plugin
-/dragonreload
-
-# View server logs
-docker logs papermc-dragonegg
-
-# Check Minecraft logs
-# In server console: tail -f logs/latest.log
-```
-
-### Performance Notes
+## Performance Notes
 
 - Ray tracing optimized for entities within 50 blocks
 - Particle effects limited to prevent lag
@@ -271,9 +464,12 @@ For issues and questions:
 3. Include server configuration and plugin version
 4. Describe steps to reproduce the issue
 
+**For Server Administrators**: Check the comprehensive testing guide above first. Most issues can be resolved by following the troubleshooting steps.
+
 ---
 
 **Author**: Augustus
-**Version**: 1.0.0
-**Paper API**: 1.21.4-R0.1-SNAPSHOT
+**Version**: 0.1.0
+**Paper API**: 1.21.8-R0.1-SNAPSHOT
 **Minecraft Version**: 1.21.8+
+**Release**: https://github.com/ronaldtse/papermc-plugin-dragon-egg/releases/tag/v0.1.0
