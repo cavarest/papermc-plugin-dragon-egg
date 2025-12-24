@@ -73,21 +73,29 @@ jobs:
         echo "- **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> CHANGELOG.md
         echo "- **Commit**: ${{ github.sha }}" >> CHANGELOG.md
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.version.outputs.tag }}
-        name: Release ${{ steps.version.outputs.version }}
-        body_path: CHANGELOG.md
-        draft: false
-        prerelease: false
-        files: |
-          target/DragonEggLightning-*.jar
+    - name: Create Release using GitHub CLI
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Check if release already exists
+        if gh release view ${{ steps.version.outputs.tag }} --json id --jq '.id' 2>/dev/null; then
+          echo "Release ${{ steps.version.outputs.tag }} already exists"
+          echo "Deleting existing release..."
+          gh release delete ${{ steps.version.outputs.tag }} --yes
+        fi
+
+        # Create new release
+        echo "Creating new release..."
+        gh release create ${{ steps.version.outputs.tag }} \
+          target/DragonEggLightning-*.jar \
+          --title "Release ${{ steps.version.outputs.version }}" \
+          --notes-file CHANGELOG.md \
+          --latest
+
+        echo "Release created successfully!"
 
     - name: Verify Release Assets
       run: |
-        echo "Release created successfully!"
-        echo "JAR file should be uploaded to the release"
-        ls -la target/DragonEggLightning-*.jar
+        echo "Checking release assets..."
+        gh release view ${{ steps.version.outputs.tag }} --json assets --jq '.assets[] | "\(.name): \(.size) bytes"'
+        echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}"
