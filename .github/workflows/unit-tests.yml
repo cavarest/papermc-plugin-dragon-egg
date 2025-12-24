@@ -61,7 +61,7 @@ jobs:
     - name: Upload JAR artifact
       uses: actions/upload-artifact@v4
       with:
-        name: plugin-jar-java-${{ matrix.java-version }}
+        name: DragonEggLightning-Plugin-Java${{ matrix.java-version }}
         path: target/DragonEggLightning-*.jar
         retention-days: 30
 
