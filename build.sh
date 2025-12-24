@@ -12,10 +12,12 @@ echo "================================"
 echo "Running Maven clean and package..."
 mvn clean package
 
-# Check if JAR was created (with the correct filename from pom.xml finalName)
-if [ -f "target/DragonEggLightning-1.0.0-plugin-java21.jar" ]; then
+# Find the generated JAR file dynamically (handle different Java versions)
+JAR_FILE=$(find target/ -name "DragonEggLightning-*.jar" | head -1)
+
+if [ -n "$JAR_FILE" ]; then
     echo "✓ Plugin JAR created successfully!"
-    echo "  Location: target/DragonEggLightning-1.0.0-plugin-java21.jar"
+    echo "  Location: $JAR_FILE"
 else
     echo "✗ Failed to create plugin JAR"
     echo "Checking for alternative JAR files..."

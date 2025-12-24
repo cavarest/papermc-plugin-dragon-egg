@@ -16,9 +16,18 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>21</java.version>
     </properties>
 
     <repositories>
+        <!-- Maven Central Repository (default) -->
+        <repository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+
+        <!-- PaperMC Repository for Paper API -->
         <repository>
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
@@ -60,7 +69,7 @@
     </dependencies>
 
     <build>
-        <finalName>DragonEggLightning-${project.version}-plugin-java21</finalName>
+        <finalName>DragonEggLightning-${project.version}-plugin</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -73,8 +82,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <source>21</source>
-                    <target>21</target>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                 </configuration>
             </plugin>
             <plugin>

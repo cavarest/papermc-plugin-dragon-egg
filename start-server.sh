@@ -8,14 +8,18 @@ echo "================================"
 echo "Starting Paper MC Server"
 echo "================================"
 
-# Check if plugin JAR exists (with the correct filename from pom.xml finalName)
-if [ ! -f "target/DragonEggLightning-1.0.0-plugin-java21.jar" ]; then
+# Find the generated JAR file dynamically (handle different Java versions)
+JAR_FILE=$(find target/ -name "DragonEggLightning-*.jar" | head -1)
+
+if [ -z "$JAR_FILE" ]; then
     echo "✗ Plugin JAR not found!"
     echo "  Please run ./build.sh first"
+    echo "Checking for JAR files..."
+    ls -la target/ 2>/dev/null || echo "No target directory found"
     exit 1
 fi
 
-echo "✓ Plugin JAR found"
+echo "✓ Plugin JAR found: $JAR_FILE"
 
 # Start Docker container
 echo "Starting Docker container..."
