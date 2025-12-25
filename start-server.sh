@@ -98,25 +98,20 @@ if [ "$RESET" = true ]; then
     echo ""
 fi
 
-# Check if Docker image exists, if not build it automatically
-if ! docker images | grep -q "dragon-egg-lightning"; then
-    echo "📦 Docker image not found, building automatically..."
-    echo ""
-    echo "Using PLUGIN_VERSION: ${PLUGIN_VERSION}"
-    echo "Using ADMIN_USERNAME: ${ADMIN_USERNAME}"
+# Always rebuild Docker image to ensure latest plugin is loaded
+echo "📦 Building Docker image with latest plugin..."
+echo ""
+echo "Using PLUGIN_VERSION: ${PLUGIN_VERSION}"
+echo "Using ADMIN_USERNAME: ${ADMIN_USERNAME}"
 
-    # Build using docker-compose with environment variables
-    if ! docker-compose build; then
-        echo "✗ Failed to build Docker image"
-        exit 1
-    fi
-
-    echo "✅ Docker image built successfully!"
-    echo ""
-else
-    echo "✅ Docker image found: dragon-egg-lightning:latest"
-    echo "   (Docker will automatically rebuild changed layers if needed)"
+# Build using docker-compose with environment variables (always rebuild)
+if ! docker-compose build --no-cache; then
+    echo "✗ Failed to build Docker image"
+    exit 1
 fi
+
+echo "✅ Docker image built successfully with plugin version ${PLUGIN_VERSION}!"
+echo ""
 
 # Check if plugin JAR exists (for reference)
 JAR_FILE=$(find target/ -name "DragonEggLightning-${PLUGIN_VERSION}.jar" | head -1)
