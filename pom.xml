@@ -6,7 +6,7 @@
 
     <groupId>com.dragonegg</groupId>
     <artifactId>dragon-egg-lightning</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>DragonEggLightning</name>
@@ -69,7 +69,7 @@
     </dependencies>
 
     <build>
-        <finalName>DragonEggLightning-1.0.0</finalName>
+        <finalName>DragonEggLightning-1.0.1</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
