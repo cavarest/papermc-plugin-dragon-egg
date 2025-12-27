@@ -8,12 +8,15 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Command handler for /ability command.
+ * Command handler for /ability command with tab completion support.
  */
-public class AbilityCommand implements CommandExecutor {
+public class AbilityCommand implements CommandExecutor, TabCompleter {
 
   private final DragonEggLightningPlugin plugin;
   private final AbilityManager abilityManager;
@@ -44,33 +47,51 @@ public class AbilityCommand implements CommandExecutor {
 
     Player player = (Player) sender;
 
-    // Handle version/info command
-    if (args.length == 1 && (args[0].equalsIgnoreCase("version") || args[0].equalsIgnoreCase("info"))) {
-      String pluginVersion = plugin.getDescription().getVersion();
-      String pluginName = plugin.getDescription().getName();
+    // Handle about command
+    if (args.length == 1 && args[0].equalsIgnoreCase("about")) {
+      plugin.sendPluginInfo(player);
+      return true;
+    }
 
+    // Handle help command
+    if (args.length == 1 && args[0].equalsIgnoreCase("help")) {
       player.sendMessage(
-        Component.text("=== " + pluginName + " Plugin Info ===", NamedTextColor.GOLD)
+        Component.text("=== DragonEggLightning Help ===", NamedTextColor.GOLD)
       );
       player.sendMessage(
-        Component.text("Version: " + pluginVersion, NamedTextColor.GREEN)
+        Component.text("How to use the Dragon Egg Lightning ability:", NamedTextColor.WHITE)
       );
       player.sendMessage(
-        Component.text("Author: " + String.join(", ", plugin.getDescription().getAuthors()), NamedTextColor.BLUE)
+        Component.text("1. Hold a Dragon Egg in your offhand", NamedTextColor.GRAY)
       );
       player.sendMessage(
-        Component.text("Description: " + plugin.getDescription().getDescription(), NamedTextColor.GRAY)
+        Component.text("2. Use /ability 1 to cast lightning strike", NamedTextColor.GRAY)
       );
       player.sendMessage(
-        Component.text("Website: " + plugin.getDescription().getWebsite(), NamedTextColor.BLUE)
+        Component.text("3. Lightning will strike your target 3 times", NamedTextColor.GRAY)
       );
+      player.sendMessage(
+        Component.text("4. Each strike deals 2 hearts of damage", NamedTextColor.GRAY)
+      );
+      player.sendMessage(
+        Component.text("5. Damage bypasses armor protection", NamedTextColor.GRAY)
+      );
+      player.sendMessage(
+        Component.text("6. 60 second cooldown between uses", NamedTextColor.GRAY)
+      );
+      return true;
+    }
+
+    // Handle version command
+    if (args.length == 1 && args[0].equalsIgnoreCase("version")) {
+      plugin.sendPluginInfo(player);
       return true;
     }
 
     // Check arguments for ability use
     if (args.length != 1) {
       player.sendMessage(
-        Component.text("Usage: /ability <number> | /ability version", NamedTextColor.RED)
+        Component.text("Usage: /ability <number> | /ability version | /ability help", NamedTextColor.RED)
       );
       return true;
     }
@@ -81,7 +102,7 @@ public class AbilityCommand implements CommandExecutor {
       abilityId = Integer.parseInt(args[0]);
     } catch (NumberFormatException e) {
       player.sendMessage(
-        Component.text("Invalid ability number!", NamedTextColor.RED)
+        Component.text("Invalid ability number! Use /ability help for usage.", NamedTextColor.RED)
       );
       return true;
     }
@@ -90,7 +111,7 @@ public class AbilityCommand implements CommandExecutor {
     Ability ability = abilityManager.getAbility(abilityId);
     if (ability == null) {
       player.sendMessage(
-        Component.text("Ability not found!", NamedTextColor.RED)
+        Component.text("Ability not found! Use /ability help for available abilities.", NamedTextColor.RED)
       );
       return true;
     }
@@ -130,5 +151,28 @@ public class AbilityCommand implements CommandExecutor {
     }
 
     return true;
+  }
+
+  @Override
+  public List<String> onTabComplete(
+    CommandSender sender,
+    Command command,
+    String alias,
+    String[] args
+  ) {
+    List<String> completions = new ArrayList<>();
+
+    if (args.length == 1) {
+      // Only show supported commands
+      completions.add("1");      // Lightning ability
+      completions.add("version"); // Version info
+      completions.add("help");    // Help text
+
+      // Filter completions based on what the player has typed
+      String partial = args[0].toLowerCase();
+      completions.removeIf(comp -> !comp.toLowerCase().startsWith(partial));
+    }
+
+    return completions;
   }
 }
