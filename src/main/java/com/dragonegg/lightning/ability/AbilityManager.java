@@ -2,6 +2,11 @@ package com.dragonegg.lightning.ability;
 
 import com.dragonegg.lightning.DragonEggLightningPlugin;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,7 +15,7 @@ import java.util.UUID;
 /**
  * Manages player abilities and cooldowns.
  */
-public class AbilityManager {
+public class AbilityManager implements Listener {
 
   private final DragonEggLightningPlugin plugin;
   private final Map<UUID, Ability> abilities;
@@ -22,6 +27,7 @@ public class AbilityManager {
     this.cooldowns = new HashMap<>();
 
     registerAbilities();
+    registerEventListeners();
   }
 
   /**
@@ -32,6 +38,16 @@ public class AbilityManager {
       UUID.fromString("00000000-0000-0000-0000-000000000001"),
       new LightningAbility(plugin)
     );
+  }
+
+  /**
+   * Register event listeners for cooldown management.
+   * Only registers if plugin is not null (handles testing scenarios).
+   */
+  private void registerEventListeners() {
+    if (plugin != null && plugin.getServer() != null) {
+      plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    }
   }
 
   /**
@@ -130,13 +146,63 @@ public class AbilityManager {
   }
 
   /**
-   * Clear cooldown for a player (for testing).
+   * Clear cooldown for a player (for testing or special cases).
    *
    * @param player The player
    */
   public void clearCooldown(Player player) {
     if (player != null) {
       cooldowns.remove(player.getUniqueId());
+    }
+  }
+
+  /**
+   * Set cooldown for a player (used for testing).
+   *
+   * @param player The player
+   * @param cooldownSeconds Cooldown in seconds
+   */
+  public void setCooldown(Player player, int cooldownSeconds) {
+    if (player != null) {
+      long cooldownEnd = System.currentTimeMillis() + (cooldownSeconds * 1000L);
+      cooldowns.put(player.getUniqueId(), cooldownEnd);
+    }
+  }
+
+  /**
+   * Event handler for player death - clears cooldown so respawn restarts it.
+   *
+   * @param event The player death event
+   */
+  @EventHandler
+  public void onPlayerDeath(PlayerDeathEvent event) {
+    Player player = event.getEntity();
+    if (player != null) {
+      // Clear cooldown on death - this allows the respawn to restart the cooldown
+      cooldowns.remove(player.getUniqueId());
+    }
+  }
+
+  /**
+   * Event handler for player join - cooldown persists across logout/login.
+   * This prevents players from avoiding cooldowns by logging out and back in.
+   *
+   * @param event The player join event
+   */
+  @EventHandler
+  public void onPlayerJoin(PlayerJoinEvent event) {
+    Player player = event.getPlayer();
+    if (player != null) {
+      // Check if player has remaining cooldown
+      Long cooldownEnd = cooldowns.get(player.getUniqueId());
+      if (cooldownEnd != null) {
+        long remaining = cooldownEnd - System.currentTimeMillis();
+        if (remaining <= 0) {
+          // Cooldown has expired while offline, remove it
+          cooldowns.remove(player.getUniqueId());
+        }
+        // If remaining > 0, cooldown persists (which is what we want)
+      }
     }
   }
 }

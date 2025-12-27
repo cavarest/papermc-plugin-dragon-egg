@@ -8,18 +8,20 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.LightningStrike;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * Lightning ability that strikes targets with purple lightning.
+ * Features intelligent target switching: if initial target dies, moves to next closest target.
  */
 public class LightningAbility implements Ability {
 
@@ -42,7 +44,7 @@ public class LightningAbility implements Ability {
       return false;
     }
 
-    // Find target entity
+    // Find initial target entity
     LivingEntity target = findTargetEntity(player);
 
     if (target == null) {
@@ -63,7 +65,7 @@ public class LightningAbility implements Ability {
       return false;
     }
 
-    // Execute lightning strikes with timing
+    // Execute lightning strikes with intelligent target switching
     executeLightningStrikes(player, target);
 
     player.sendMessage(
@@ -90,6 +92,26 @@ public class LightningAbility implements Ability {
   @Override
   public String getName() {
     return ABILITY_NAME;
+  }
+
+  /**
+   * Get a descriptive name for the target entity.
+   *
+   * @param entity The target entity
+   * @return A descriptive name for the target
+   */
+  private String getTargetName(Entity entity) {
+    if (entity instanceof Player) {
+      return ((Player) entity).getName();
+    }
+
+    String entityType = entity.getType().name();
+    // Convert enum name to more readable format
+    entityType = entityType.replace('_', ' ');
+    entityType = entityType.toLowerCase();
+    entityType = entityType.substring(0, 1).toUpperCase() + entityType.substring(1);
+
+    return entityType;
   }
 
   /**
@@ -171,33 +193,74 @@ public class LightningAbility implements Ability {
   }
 
   /**
-   * Execute sequential lightning strikes on target.
+   * Find next closest target excluding the current target.
+   *
+   * @param player The player
+   * @param currentTarget The current target to exclude
+   * @return The next closest target or null if none found
+   */
+  private LivingEntity findNextTarget(Player player, LivingEntity currentTarget) {
+    if (player == null || currentTarget == null) {
+      return null;
+    }
+
+    Location eyeLocation = player.getEyeLocation();
+    Vector direction = eyeLocation.getDirection();
+    LivingEntity nextTarget = null;
+    double nearestDistance = MAX_RANGE;
+    double minDotProduct = 0.9; // Roughly 25 degree cone
+
+    for (Entity entity : player.getWorld().getNearbyEntities(
+      eyeLocation,
+      MAX_RANGE,
+      MAX_RANGE,
+      MAX_RANGE
+    )) {
+      if (!(entity instanceof LivingEntity) ||
+          entity == player ||
+          entity == currentTarget || // Exclude current target
+          entity.isDead()) {
+        continue;
+      }
+
+      Vector toEntity = entity.getLocation()
+        .subtract(eyeLocation)
+        .toVector()
+        .normalize();
+      double dot = direction.dot(toEntity);
+
+      if (dot >= minDotProduct) {
+        double distance = eyeLocation.distance(entity.getLocation());
+        if (distance < nearestDistance) {
+          nextTarget = (LivingEntity) entity;
+          nearestDistance = distance;
+        }
+      }
+    }
+
+    return nextTarget;
+  }
+
+  /**
+   * Execute sequential lightning strikes with intelligent target switching.
    *
    * @param player The player casting the ability
-   * @param target The target entity
+   * @param initialTarget The initial target entity
    */
-  private void executeLightningStrikes(Player player, LivingEntity target) {
-    // Store references to avoid final variable issues
-    final LivingEntity finalTarget = target;
+  private void executeLightningStrikes(Player player, LivingEntity initialTarget) {
+    // Use AtomicReference to make variables effectively final for inner class
+    final AtomicReference<LivingEntity> currentTargetRef = new AtomicReference<>(initialTarget);
+    final AtomicReference<String> currentTargetNameRef = new AtomicReference<>(getTargetName(initialTarget));
+    final AtomicReference<Integer> totalStrikesRef = new AtomicReference<>(0);
+    final AtomicReference<Integer> strikesOnCurrentTargetRef = new AtomicReference<>(0);
     final Player finalPlayer = player;
 
     new BukkitRunnable() {
-      private int strikeCount = 0;
-
       @Override
       public void run() {
-        // Check if target is still valid (use stored reference)
-        if (finalTarget.isDead() || !finalTarget.isValid()) {
-          player.sendMessage(
-            Component.text("Target is no longer valid!", NamedTextColor.YELLOW)
-          );
-          cancel();
-          return;
-        }
-
         // Check if player still has dragon egg (can be switched mid-cast)
         if (!hasRequiredItem(finalPlayer)) {
-          player.sendMessage(
+          finalPlayer.sendMessage(
             Component.text(
               "Ability cancelled! Dragon Egg removed from offhand.",
               NamedTextColor.RED
@@ -207,18 +270,42 @@ public class LightningAbility implements Ability {
           return;
         }
 
-        // Strike the target
-        strikeLightning(finalTarget);
-        strikeCount++;
+        LivingEntity currentTarget = currentTargetRef.get();
 
-        // Send strike message
-        player.sendMessage(
-          Component.text("Lightning strike " + strikeCount + "/" + STRIKE_COUNT + "!",
+        // If no valid target, try to find a new one
+        if (currentTarget == null || currentTarget.isDead() || !currentTarget.isValid()) {
+          LivingEntity newTarget = findNextTarget(finalPlayer, currentTarget);
+          if (newTarget == null) {
+            finalPlayer.sendMessage(
+              Component.text("No more valid targets found!", NamedTextColor.RED)
+            );
+            cancel();
+            return;
+          } else {
+            // Switched to new target
+            currentTargetRef.set(newTarget);
+            currentTargetNameRef.set(getTargetName(newTarget));
+            strikesOnCurrentTargetRef.set(0);
+            finalPlayer.sendMessage(
+              Component.text("Lightning shifts to " + currentTargetNameRef.get() + "!", NamedTextColor.GOLD)
+            );
+          }
+        }
+
+        // Strike the current target
+        strikeLightning(currentTargetRef.get(), finalPlayer, currentTargetNameRef.get());
+        totalStrikesRef.set(totalStrikesRef.get() + 1);
+        strikesOnCurrentTargetRef.set(strikesOnCurrentTargetRef.get() + 1);
+
+        // Send strike message with target information
+        finalPlayer.sendMessage(
+          Component.text("Lightning strike " + totalStrikesRef.get() + "/" + STRIKE_COUNT +
+                        " hit " + currentTargetNameRef.get() + "!",
                         NamedTextColor.LIGHT_PURPLE)
         );
 
         // Check if all strikes are done
-        if (strikeCount >= STRIKE_COUNT) {
+        if (totalStrikesRef.get() >= STRIKE_COUNT) {
           cancel();
         }
       }
@@ -229,8 +316,10 @@ public class LightningAbility implements Ability {
    * Strike a single lightning bolt on the target.
    *
    * @param target The target entity
+   * @param player The casting player (for feedback)
+   * @param targetName The name of the target for messages
    */
-  private void strikeLightning(LivingEntity target) {
+  private void strikeLightning(LivingEntity target, Player player, String targetName) {
     Location targetLocation = target.getLocation();
 
     // Create actual lightning strike (use correct entity type)
